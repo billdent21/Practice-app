@@ -549,10 +549,10 @@ select option{background:#0e1218;}
       <button class="mnb" onclick="CON.shift(1)">›</button>
     </div>
     <div class="cg">
-      <div class="cd ccon"><div class="cl">Consultations</div><div class="cv" id="con-dcon">0</div></div>
+      <div class="cd ccon"><div class="cl">Attended</div><div class="cv" id="con-dcon">0</div></div>
       <div class="cd cpat"><div class="cl">Converted</div><div class="cv" id="con-dconv">0</div></div>
       <div class="cd cfin"><div class="cl">No-Shows</div><div class="cv" id="con-dnoshow">0</div></div>
-      <div class="cd cmut w"><div class="cl">Conversion Rate This Month</div><div class="cv" id="con-drate">—</div></div>
+      <div class="cd cmut w"><div class="cl">Conversion Rate This Month (Converted ÷ Attended)</div><div class="cv" id="con-drate">—</div></div>
     </div>
     <div class="st">Daily Entries</div>
     <div class="dl" id="con-dlist"></div>
@@ -583,7 +583,7 @@ select option{background:#0e1218;}
         <input type="number" id="con-noshow" placeholder="0" min="0" style="text-align:center" oninput="CON.updPrev()"/></div>
     </div>
     <div class="fg"><label class="fl">Conversion Rate</label>
-      <div class="tp"><span>Converted ÷ Consultations</span><span id="con-prev" style="color:var(--con)">—</span></div>
+      <div class="tp"><span>Converted ÷ Attended (excl. no-shows)</span><span id="con-prev" style="color:var(--con)">—</span></div>
     </div>
     <button class="sb" style="background:var(--con);color:#07090f" onclick="CON.save()">Save Entry</button>
     <button class="cb" onclick="CON.closeMod()">Cancel</button>
@@ -759,8 +759,9 @@ const S = {
       const mc=ce.filter(e=>e.date.startsWith(tm));
       const mcon=mc.reduce((s,e)=>s+e.con,0), mconv=mc.reduce((s,e)=>s+e.conv,0);
       const tc=ce.reduce((s,e)=>s+e.con,0);
-      fe('h-cm').textContent=mcon; fe('h-ct').textContent=tc;
-      fe('h-cc').textContent=mcon>0?fmP(mconv/mcon*100):'—';
+      const matt=mc.reduce((s,e)=>s+Math.max(0,e.con-(e.noshow||0)),0), tatt=ce.reduce((s,e)=>s+Math.max(0,e.con-(e.noshow||0)),0);
+    fe('h-cm').textContent=matt; fe('h-ct').textContent=tatt;
+      fe('h-cc').textContent=matt>0?fmP(mconv/matt*100):'—';
     }catch(e){}
     try{
       const xe=JSON.parse(localStorage.getItem('spendwise_expenses')||'[]');
@@ -1566,7 +1567,7 @@ const CON = (() => {
   let curM=thisMon(), yv='cal', mf='all', editI=null, inited=false;
   const sv=()=>localStorage.setItem('pc_entries',JSON.stringify(E));
   const mEs=m=>E.filter(e=>e.date.slice(0,7)===m);
-  function smC(m){const es=mEs(m); const c=es.reduce((s,e)=>s+e.con,0),cv=es.reduce((s,e)=>s+e.conv,0),ns=es.reduce((s,e)=>s+(e.noshow||0),0); return{con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0};}
+  function smC(m){const es=mEs(m); const c=es.reduce((s,e)=>s+e.con,0),cv=es.reduce((s,e)=>s+e.conv,0),ns=es.reduce((s,e)=>s+(e.noshow||0),0); const att=Math.max(0,c-ns); return{con:att,total:c,conv:cv,noshow:ns,rate:att>0?cv/att*100:0};}
 
   function setTabs(active){
     ['daily','monthly','yearly'].forEach(t=>{
@@ -1616,21 +1617,23 @@ const CON = (() => {
     const avg=avgOf(rows.map(r=>r.con)), avgR=tC>0?tCV/tC*100:0;
     fe('con-mcont').innerHTML=`
       <div class="cg">
-        <div class="cd ccon w"><div class="cl">Period Total Consultations</div><div class="cv">${tC}</div></div>
+        <div class="cd ccon"><div class="cl">Total Consultations</div><div class="cv">${rows.reduce((s,r)=>s+r.total,0)}</div></div>
+        <div class="cd ccon"><div class="cl">Attended</div><div class="cv">${tC}</div></div>
         <div class="cd cpat"><div class="cl">Total Converted</div><div class="cv">${tCV}</div></div>
         <div class="cd cmut"><div class="cl">Avg Conversion Rate</div><div class="cv">${tC>0?fmP(avgR):'—'}</div></div>
         <div class="cd cmut w"><div class="cl">Monthly Average</div><div class="cv">${avg.toFixed(1)}</div></div>
       </div>
       <div class="pt">
-        <div class="pth" style="grid-template-columns:1fr 60px 60px 60px 70px"><span>Month</span><span>Consult.</span><span>Convert.</span><span>No-Show</span><span>Rate %</span></div>
-        ${rows.slice().reverse().map(r=>`<div class="ptr${r.m===thisMon()?' hl':''}" style="grid-template-columns:1fr 60px 60px 60px 70px">
+        <div class="pth" style="grid-template-columns:1fr 55px 55px 55px 55px 70px"><span>Month</span><span>Total</span><span>Attended</span><span>Convert.</span><span>No-Show</span><span>Rate %</span></div>
+        ${rows.slice().reverse().map(r=>`<div class="ptr${r.m===thisMon()?' hl':''}" style="grid-template-columns:1fr 55px 55px 55px 55px 70px">
           <span class="pn">${mLabel(r.m)}</span>
+          <span class="pv">${r.total||'—'}</span>
           <span class="pv hi">${r.con||'—'}</span>
           <span class="pv">${r.conv||'—'}</span>
           <span class="pv" style="color:${r.noshow>0?'var(--fin)':'var(--mu)'}">${r.noshow||'—'}</span>
           <span class="pv">${r.con>0?fmP(r.rate):'—'}</span>
         </div>`).join('')}
-        <div class="ptf" style="grid-template-columns:1fr 60px 60px 60px 70px"><span>Total</span><span>${tC}</span><span>${tCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${tC>0?fmP(avgR):'—'}</span></div>
+        <div class="ptf" style="grid-template-columns:1fr 55px 55px 55px 55px 70px"><span>Total</span><span>${rows.reduce((s,r)=>s+r.total,0)}</span><span>${tC}</span><span>${tCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${tC>0?fmP(avgR):'—'}</span></div>
       </div>`;
   }
 
@@ -1638,38 +1641,40 @@ const CON = (() => {
     fe('con-ycal').classList.toggle('on',yv==='cal');
     fe('con-yprac').classList.toggle('on',yv==='prac');
     const allMs=allMonths(thisMon());
-    const gC=allMs.reduce((s,m)=>s+smC(m).con,0), gCV=allMs.reduce((s,m)=>s+smC(m).conv,0), gNS=allMs.reduce((s,m)=>s+smC(m).noshow,0);
+    const gC=allMs.reduce((s,m)=>s+smC(m).con,0), gCV=allMs.reduce((s,m)=>s+smC(m).conv,0), gNS=allMs.reduce((s,m)=>s+smC(m).noshow,0), gTot=allMs.reduce((s,m)=>s+smC(m).total,0);
     const ovgAvg=avgOf(allMs.map(m=>smC(m).con)), ovgRate=gC>0?gCV/gC*100:0;
     let rows;
     if(yv==='cal'){
       rows=calYears().filter(y=>y>=new Date().getFullYear()).map(y=>{
         const ms=monthsInCalYear(y).filter(m=>m>=thisMon());
-        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0);
-        return{label:''+y,con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
+        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0), tot=ms.reduce((s,m)=>s+smC(m).total,0);
+        return{label:''+y,con:c,conv:cv,noshow:ns,total:tot,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
       });
     } else {
       rows=pracYears().filter(py=>py.end>=thisMon()).map(py=>{
         const ms=monthsInPracYear(py).filter(m=>m>=thisMon());
-        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0);
-        return{label:py.label,con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
+        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0), tot=ms.reduce((s,m)=>s+smC(m).total,0);
+        return{label:py.label,con:c,conv:cv,noshow:ns,total:tot,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
       });
     }
     fe('con-ycont').innerHTML=`
       <div class="cg">
-        <div class="cd ccon w"><div class="cl">All-Time Consultations</div><div class="cv">${gC}</div></div>
+        <div class="cd ccon"><div class="cl">All-Time Total</div><div class="cv">${gTot}</div></div>
+      <div class="cd ccon"><div class="cl">All-Time Attended</div><div class="cv">${gC}</div></div>
         <div class="cd cpat"><div class="cl">All-Time Converted</div><div class="cv">${gCV}</div></div>
         <div class="cd cmut w"><div class="cl">Overall Conversion Rate</div><div class="cv">${gC>0?fmP(ovgRate):'—'}</div></div>
         <div class="cd cmut w"><div class="cl">Monthly Average Consultations</div><div class="cv">${ovgAvg.toFixed(1)}</div></div>
       </div>
       <div class="pt">
-        <div class="pth" style="grid-template-columns:1fr 60px 60px 60px 60px 60px"><span>Period</span><span>Consult.</span><span>Convert.</span><span>No-Show</span><span>Rate %</span><span>Avg/mo</span></div>
-        ${rows.map(r=>`<div class="ptr" style="grid-template-columns:1fr 60px 60px 60px 60px 60px">
+        <div class="pth" style="grid-template-columns:1fr 50px 50px 50px 50px 55px 55px"><span>Period</span><span>Total</span><span>Attended</span><span>Convert.</span><span>No-Show</span><span>Rate %</span><span>Avg/mo</span></div>
+        ${rows.map(r=>`<div class="ptr" style="grid-template-columns:1fr 50px 50px 50px 50px 55px 55px">
           <span class="pn">${r.label}</span>
+          <span class="pv">${r.total}</span>
           <span class="pv hi">${r.con}</span><span class="pv">${r.conv}</span>
           <span class="pv" style="color:${r.noshow>0?'var(--fin)':'var(--mu)'}">${r.noshow||'—'}</span>
           <span class="pv">${r.con>0?fmP(r.rate):'—'}</span><span class="pv">${r.avg.toFixed(1)}</span>
         </div>`).join('')}
-        <div class="ptf" style="grid-template-columns:1fr 60px 60px 60px 60px 60px"><span>Total</span><span>${gC}</span><span>${gCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${gC>0?fmP(ovgRate):'—'}</span><span>${ovgAvg.toFixed(1)}</span></div>
+        <div class="ptf" style="grid-template-columns:1fr 50px 50px 50px 50px 55px 55px"><span>Total</span><span>${rows.reduce((s,r)=>s+r.total,0)}</span><span>${gC}</span><span>${gCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${gC>0?fmP(ovgRate):'—'}</span><span>${ovgAvg.toFixed(1)}</span></div>
       </div>`;
   }
 
@@ -1686,7 +1691,7 @@ const CON = (() => {
       openMo('con-mod');
     },
     closeMod(){closeMo('con-mod');},
-    updPrev(){const c=+fe('con-total').value||0, cv=+fe('con-conv').value||0; fe('con-prev').textContent=c>0?fmP(Math.min(cv,c)/c*100):'—';},
+    updPrev(){const c=+fe('con-total').value||0, cv=+fe('con-conv').value||0, ns=+fe('con-noshow').value||0; const att=Math.max(0,c-ns); fe('con-prev').textContent=att>0?fmP(Math.min(cv,att)/att*100):'—';},
     edit(i){editI=i; const e=E[i]; fe('con-modttl').textContent='Edit Entry'; fe('con-date').value=e.date; fe('con-date').disabled=true; fe('con-total').value=e.con; fe('con-conv').value=e.conv; fe('con-noshow').value=e.noshow||0; this.updPrev(); openMo('con-mod');},
     del(i){if(!confirm('Delete this entry?'))return; E.splice(i,1); sv(); renderDaily();},
     save(){
