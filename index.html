@@ -551,6 +551,7 @@ select option{background:#0e1218;}
     <div class="cg">
       <div class="cd ccon"><div class="cl">Consultations</div><div class="cv" id="con-dcon">0</div></div>
       <div class="cd cpat"><div class="cl">Converted</div><div class="cv" id="con-dconv">0</div></div>
+      <div class="cd cfin"><div class="cl">No-Shows</div><div class="cv" id="con-dnoshow">0</div></div>
       <div class="cd cmut w"><div class="cl">Conversion Rate This Month</div><div class="cv" id="con-drate">—</div></div>
     </div>
     <div class="st">Daily Entries</div>
@@ -573,11 +574,13 @@ select option{background:#0e1218;}
   <div class="mw">
     <div class="mttl" id="con-modttl">Record Consultations</div>
     <div class="fg"><label class="fl">Date</label><input type="date" id="con-date"/></div>
-    <div class="fr2">
+    <div class="fr3">
       <div class="fg"><label class="fl" style="color:var(--con)">🗓️ Consultations</label>
         <input type="number" id="con-total" placeholder="0" min="0" style="text-align:center" oninput="CON.updPrev()"/></div>
       <div class="fg"><label class="fl" style="color:var(--pat)">✅ Converted</label>
         <input type="number" id="con-conv" placeholder="0" min="0" style="text-align:center" oninput="CON.updPrev()"/></div>
+      <div class="fg"><label class="fl" style="color:var(--fin)">🚫 No-Shows</label>
+        <input type="number" id="con-noshow" placeholder="0" min="0" style="text-align:center" oninput="CON.updPrev()"/></div>
     </div>
     <div class="fg"><label class="fl">Conversion Rate</label>
       <div class="tp"><span>Converted ÷ Consultations</span><span id="con-prev" style="color:var(--con)">—</span></div>
@@ -907,7 +910,7 @@ const INC = (() => {
       </div>`:''}
       <div class="st">Same Month — All Years</div>
       <div class="pt" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <div class="pth" style="grid-template-columns:44px ${' '.join(['58px']*len(calYrs))}">
+        <div class="pth" style="grid-template-columns:44px ${calYrs.map(()=>'58px').join(' ')}">
           <span>Month</span>${calYrs.map(y=>`<span>${y}</span>`).join('')}
         </div>
         ${smRows.map(r=>`<div class="ptr" style="grid-template-columns:44px ${calYrs.map(()=>'58px').join(' ')}">
@@ -1240,7 +1243,7 @@ const PAT = (() => {
           }).join('')}</div>`:''}
         <div class="st">Same Month — All Calendar Years</div>
         <div class="pt" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <div class="pth" style="grid-template-columns:44px ${' '.join(['46px']*len(calYrs))}">
+          <div class="pth" style="grid-template-columns:44px ${calYrs.map(()=>'46px').join(' ')}">
             <span>Month</span>${calYrs.map(y=>`<span>${y}</span>`).join('')}
           </div>
           ${smRows.map(r=>`<div class="ptr" style="grid-template-columns:44px ${calYrs.map(()=>'46px').join(' ')}">
@@ -1254,10 +1257,10 @@ const PAT = (() => {
         <div class="st">Cumulative New — Per Practice Year</div>
         <div style="font-size:11px;color:var(--mu);margin-bottom:8px">Running total + monthly average within each practice year (Nov–Oct)</div>
         <div class="pt" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <div class="pth" style="grid-template-columns:40px ${' '.join([' 60px 44px']*len(pracYrs))}">
+          <div class="pth" style="grid-template-columns:40px ${pracYrs.map(()=>'60px 44px').join(' ')}">
             <span>Mo</span>${pracYrs.map(p=>`<span colspan="2" style="grid-column:span 2">${p.label}</span>`).join('')}
           </div>
-          <div class="pth" style="grid-template-columns:40px ${' '.join(['60px 44px']*len(pracYrs))}">
+          <div class="pth" style="grid-template-columns:40px ${pracYrs.map(()=>'60px 44px').join(' ')}">
             <span></span>${pracYrs.map(()=>`<span>Cum.</span><span>Avg</span>`).join('')}
           </div>
           ${cumPracRows.map(r=>`<div class="ptr" style="grid-template-columns:40px ${pracYrs.map(()=>'60px 44px').join(' ')}">
@@ -1563,7 +1566,7 @@ const CON = (() => {
   let curM=thisMon(), yv='cal', mf='all', editI=null, inited=false;
   const sv=()=>localStorage.setItem('pc_entries',JSON.stringify(E));
   const mEs=m=>E.filter(e=>e.date.slice(0,7)===m);
-  function smC(m){const es=mEs(m); const c=es.reduce((s,e)=>s+e.con,0),cv=es.reduce((s,e)=>s+e.conv,0); return{con:c,conv:cv,rate:c>0?cv/c*100:0};}
+  function smC(m){const es=mEs(m); const c=es.reduce((s,e)=>s+e.con,0),cv=es.reduce((s,e)=>s+e.conv,0),ns=es.reduce((s,e)=>s+(e.noshow||0),0); return{con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0};}
 
   function setTabs(active){
     ['daily','monthly','yearly'].forEach(t=>{
@@ -1580,6 +1583,7 @@ const CON = (() => {
     const s=smC(curM);
     fe('con-dcon').textContent=s.con;
     fe('con-dconv').textContent=s.conv;
+    fe('con-dnoshow').textContent=s.noshow;
     fe('con-drate').textContent=s.con>0?fmP(s.rate):'—';
     const es=mEs(curM).sort((a,b)=>b.date.localeCompare(a.date));
     const el=fe('con-dlist');
@@ -1592,6 +1596,7 @@ const CON = (() => {
         <div class="dps">
           <span class="pl" style="background:var(--con-d);color:var(--con)">🗓️ ${e.con}</span>
           ${e.conv>0?`<span class="pl" style="background:var(--pat-d);color:var(--pat)">✅ ${e.conv}</span>`:''}
+          ${(e.noshow||0)>0?`<span class="pl" style="background:var(--fin-d);color:var(--fin)">🚫 ${e.noshow}</span>`:''}
           ${e.con>0?`<span class="pl" style="background:var(--s2);color:var(--mu)">${fmP(e.conv/e.con*100)}</span>`:''}
         </div>
         <div class="dt" style="color:var(--con)">${e.con}</div>
@@ -1617,14 +1622,15 @@ const CON = (() => {
         <div class="cd cmut w"><div class="cl">Monthly Average</div><div class="cv">${avg.toFixed(1)}</div></div>
       </div>
       <div class="pt">
-        <div class="pth" style="grid-template-columns:1fr 70px 70px 80px"><span>Month</span><span>Consult.</span><span>Convert.</span><span>Rate %</span></div>
-        ${rows.slice().reverse().map(r=>`<div class="ptr${r.m===thisMon()?' hl':''}" style="grid-template-columns:1fr 70px 70px 80px">
+        <div class="pth" style="grid-template-columns:1fr 60px 60px 60px 70px"><span>Month</span><span>Consult.</span><span>Convert.</span><span>No-Show</span><span>Rate %</span></div>
+        ${rows.slice().reverse().map(r=>`<div class="ptr${r.m===thisMon()?' hl':''}" style="grid-template-columns:1fr 60px 60px 60px 70px">
           <span class="pn">${mLabel(r.m)}</span>
           <span class="pv hi">${r.con||'—'}</span>
           <span class="pv">${r.conv||'—'}</span>
+          <span class="pv" style="color:${r.noshow>0?'var(--fin)':'var(--mu)'}">${r.noshow||'—'}</span>
           <span class="pv">${r.con>0?fmP(r.rate):'—'}</span>
         </div>`).join('')}
-        <div class="ptf" style="grid-template-columns:1fr 70px 70px 80px"><span>Total</span><span>${tC}</span><span>${tCV}</span><span>${tC>0?fmP(avgR):'—'}</span></div>
+        <div class="ptf" style="grid-template-columns:1fr 60px 60px 60px 70px"><span>Total</span><span>${tC}</span><span>${tCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${tC>0?fmP(avgR):'—'}</span></div>
       </div>`;
   }
 
@@ -1632,20 +1638,20 @@ const CON = (() => {
     fe('con-ycal').classList.toggle('on',yv==='cal');
     fe('con-yprac').classList.toggle('on',yv==='prac');
     const allMs=allMonths(thisMon());
-    const gC=allMs.reduce((s,m)=>s+smC(m).con,0), gCV=allMs.reduce((s,m)=>s+smC(m).conv,0);
+    const gC=allMs.reduce((s,m)=>s+smC(m).con,0), gCV=allMs.reduce((s,m)=>s+smC(m).conv,0), gNS=allMs.reduce((s,m)=>s+smC(m).noshow,0);
     const ovgAvg=avgOf(allMs.map(m=>smC(m).con)), ovgRate=gC>0?gCV/gC*100:0;
     let rows;
     if(yv==='cal'){
       rows=calYears().filter(y=>y>=new Date().getFullYear()).map(y=>{
         const ms=monthsInCalYear(y).filter(m=>m>=thisMon());
-        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0);
-        return{label:''+y,con:c,conv:cv,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
+        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0);
+        return{label:''+y,con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
       });
     } else {
       rows=pracYears().filter(py=>py.end>=thisMon()).map(py=>{
         const ms=monthsInPracYear(py).filter(m=>m>=thisMon());
-        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0);
-        return{label:py.label,con:c,conv:cv,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
+        const c=ms.reduce((s,m)=>s+smC(m).con,0), cv=ms.reduce((s,m)=>s+smC(m).conv,0), ns=ms.reduce((s,m)=>s+smC(m).noshow,0);
+        return{label:py.label,con:c,conv:cv,noshow:ns,rate:c>0?cv/c*100:0,avg:avgOf(ms.map(m=>smC(m).con))};
       });
     }
     fe('con-ycont').innerHTML=`
@@ -1656,13 +1662,14 @@ const CON = (() => {
         <div class="cd cmut w"><div class="cl">Monthly Average Consultations</div><div class="cv">${ovgAvg.toFixed(1)}</div></div>
       </div>
       <div class="pt">
-        <div class="pth" style="grid-template-columns:1fr 70px 70px 70px 70px"><span>Period</span><span>Consult.</span><span>Convert.</span><span>Rate %</span><span>Avg/mo</span></div>
-        ${rows.map(r=>`<div class="ptr" style="grid-template-columns:1fr 70px 70px 70px 70px">
+        <div class="pth" style="grid-template-columns:1fr 60px 60px 60px 60px 60px"><span>Period</span><span>Consult.</span><span>Convert.</span><span>No-Show</span><span>Rate %</span><span>Avg/mo</span></div>
+        ${rows.map(r=>`<div class="ptr" style="grid-template-columns:1fr 60px 60px 60px 60px 60px">
           <span class="pn">${r.label}</span>
           <span class="pv hi">${r.con}</span><span class="pv">${r.conv}</span>
+          <span class="pv" style="color:${r.noshow>0?'var(--fin)':'var(--mu)'}">${r.noshow||'—'}</span>
           <span class="pv">${r.con>0?fmP(r.rate):'—'}</span><span class="pv">${r.avg.toFixed(1)}</span>
         </div>`).join('')}
-        <div class="ptf" style="grid-template-columns:1fr 70px 70px 70px 70px"><span>Total</span><span>${gC}</span><span>${gCV}</span><span>${gC>0?fmP(ovgRate):'—'}</span><span>${ovgAvg.toFixed(1)}</span></div>
+        <div class="ptf" style="grid-template-columns:1fr 60px 60px 60px 60px 60px"><span>Total</span><span>${gC}</span><span>${gCV}</span><span>${rows.reduce((s,r)=>s+r.noshow,0)||'—'}</span><span>${gC>0?fmP(ovgRate):'—'}</span><span>${ovgAvg.toFixed(1)}</span></div>
       </div>`;
   }
 
@@ -1675,27 +1682,28 @@ const CON = (() => {
     openMod(){
       editI=null; fe('con-modttl').textContent='Record Consultations';
       fe('con-date').value=todayStr(); fe('con-date').disabled=false;
-      fe('con-total').value=''; fe('con-conv').value=''; fe('con-prev').textContent='—';
+      fe('con-total').value=''; fe('con-conv').value=''; fe('con-noshow').value=''; fe('con-prev').textContent='—';
       openMo('con-mod');
     },
     closeMod(){closeMo('con-mod');},
-    updPrev(){const c=+fe('con-total').value||0, cv=+fe('con-conv').value||0; fe('con-prev').textContent=c>0?fmP(cv/c*100):'—';},
-    edit(i){editI=i; const e=E[i]; fe('con-modttl').textContent='Edit Entry'; fe('con-date').value=e.date; fe('con-date').disabled=true; fe('con-total').value=e.con; fe('con-conv').value=e.conv; this.updPrev(); openMo('con-mod');},
+    updPrev(){const c=+fe('con-total').value||0, cv=+fe('con-conv').value||0; fe('con-prev').textContent=c>0?fmP(Math.min(cv,c)/c*100):'—';},
+    edit(i){editI=i; const e=E[i]; fe('con-modttl').textContent='Edit Entry'; fe('con-date').value=e.date; fe('con-date').disabled=true; fe('con-total').value=e.con; fe('con-conv').value=e.conv; fe('con-noshow').value=e.noshow||0; this.updPrev(); openMo('con-mod');},
     del(i){if(!confirm('Delete this entry?'))return; E.splice(i,1); sv(); renderDaily();},
     save(){
-      const date=fe('con-date').value, con=+fe('con-total').value||0, conv=+fe('con-conv').value||0;
+      const date=fe('con-date').value, con=+fe('con-total').value||0, conv=+fe('con-conv').value||0, noshow=+fe('con-noshow').value||0;
       if(!date){alert('Please select a date.');return;}
-      if(!con){alert('Please enter number of consultations.');return;}
+      if(!con&&!noshow){alert('Please enter at least one value.');return;}
       if(conv>con){alert('Converted cannot exceed consultations.');return;}
-      const entry={date,con,conv};
+      if(noshow>con){alert('No-shows cannot exceed consultations.');return;}
+      const entry={date,con,conv,noshow};
       if(editI!==null){E[editI]=entry;}
       else{const xi=E.findIndex(e=>e.date===date); if(xi>=0){if(!confirm('Entry exists. Replace?'))return; E.splice(xi,1);} E.push(entry); E.sort((a,b)=>a.date.localeCompare(b.date));}
       sv(); closeMo('con-mod'); curM=date.slice(0,7); renderDaily();
     },
     doExport(){
       if(!E.length){alert('No entries.');return;}
-      const rows=E.map(e=>[e.date,e.con,e.conv,(e.con>0?(e.conv/e.con*100).toFixed(1)+'%':'0%')]);
-      const csv=[['Date','Consultations','Converted','Rate'],...rows].map(r=>r.join(',')).join('\n');
+      const rows=E.map(e=>[e.date,e.con,e.conv,e.noshow||0,(e.con>0?(e.conv/e.con*100).toFixed(1)+'%':'0%')]);
+      const csv=[['Date','Consultations','Converted','No-Shows','Rate'],...rows].map(r=>r.join(',')).join('\n');
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='consultations.csv'; a.click();
     }
   };
