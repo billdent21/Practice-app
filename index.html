@@ -356,6 +356,7 @@ select option{background:#0e1218;}
     </div>
     <div class="ntabs">
       <button class="nt on" style="color:var(--inc)" id="inc-t-daily" onclick="INC.tab('daily')">Daily</button>
+      <button class="nt" id="inc-t-weekly" onclick="INC.tab('weekly')">Weekly</button>
       <button class="nt" id="inc-t-monthly" onclick="INC.tab('monthly')">Monthly</button>
       <button class="nt" id="inc-t-yearly" onclick="INC.tab('yearly')">Yearly</button>
       <button class="nt" id="inc-t-charts" onclick="INC.tab('charts')">Charts</button>
@@ -375,6 +376,15 @@ select option{background:#0e1218;}
     <div class="st">Daily Entries</div>
     <div class="dl" id="inc-dlist"></div>
   </div>
+  <div id="inc-weekly" class="sp">
+    <div class="cg" style="margin-top:10px">
+      <div class="cd cinc w"><div class="cl">Current Balance (Starting €97,000)</div><div class="cv" id="inc-w-total">€97,000</div></div>
+      <div class="cd cinc"><div class="cl">This Year Net</div><div class="cv" id="inc-w-year">€0</div></div>
+      <div class="cd cmut"><div class="cl">Weeks Recorded</div><div class="cv" id="inc-w-count">0</div></div>
+    </div>
+    <div class="st">Weekly Entries</div>
+    <div class="dl" id="inc-wlist"></div>
+  </div>
   <div id="inc-monthly" class="sp">
     <div class="yt" id="inc-mfilt"></div>
     <div id="inc-mcont"></div>
@@ -388,6 +398,24 @@ select option{background:#0e1218;}
   </div>
   <div id="inc-charts" class="sp"><div id="inc-chcont"></div></div>
   <button class="fab fi" onclick="INC.openMod()">＋ Record Day</button>
+</div>
+<div class="mo" id="inc-wmod">
+  <div class="mw">
+    <div class="mttl" id="inc-wmodttl">Record Weekly Take-Home</div>
+    <div class="fg"><label class="fl">Week</label><input type="week" id="inc-week" style="color-scheme:dark"/></div>
+    <div class="fr2">
+      <div class="fg"><label class="fl" style="color:var(--inc)">💵 Amount In (€)</label>
+        <input type="number" id="inc-wamt" placeholder="0.00" min="0" step="0.01" oninput="INC.updWPrev()"/></div>
+      <div class="fg"><label class="fl" style="color:var(--fin)">💸 Amount Out (€)</label>
+        <input type="number" id="inc-wout" placeholder="0.00" min="0" step="0.01" oninput="INC.updWPrev()"/></div>
+    </div>
+    <div class="fg"><label class="fl">Weekly Net</label>
+      <div class="tp"><span>In − Out</span><span id="inc-wprev" style="color:var(--inc)">€0</span></div></div>
+    <div class="fg"><label class="fl">Note (optional)</label>
+      <input type="text" id="inc-wnote" placeholder="e.g. Tax payment, withdrawal..."/></div>
+    <button class="sb" style="background:var(--inc);color:#07090f" onclick="INC.saveWeek()">Save Entry</button>
+    <button class="cb" onclick="INC.closeWMod()">Cancel</button>
+  </div>
 </div>
 <div class="mo" id="inc-mod">
   <div class="mw">
@@ -778,18 +806,21 @@ const S = {
 ═══════════════════════════════════════════════════ */
 const INC = (() => {
   let E = JSON.parse(localStorage.getItem('pi_entries')||'[{"date":"2022-11-01","cash":0,"bank":1900.0},{"date":"2022-12-01","cash":0,"bank":650.0},{"date":"2023-01-01","cash":0,"bank":1700.0},{"date":"2023-02-01","cash":0,"bank":2150.0},{"date":"2023-03-01","cash":0,"bank":3200.0},{"date":"2023-04-01","cash":0,"bank":2500.0},{"date":"2023-05-01","cash":0,"bank":4170.0},{"date":"2023-06-01","cash":0,"bank":3370.0},{"date":"2023-07-01","cash":0,"bank":5090.0},{"date":"2023-08-01","cash":0,"bank":1350.0},{"date":"2023-09-01","cash":0,"bank":3900.0},{"date":"2023-10-01","cash":0,"bank":5450.0},{"date":"2023-11-01","cash":0,"bank":5150.0},{"date":"2023-12-01","cash":0,"bank":2720.0},{"date":"2024-01-01","cash":0,"bank":7000.0},{"date":"2024-02-01","cash":0,"bank":3300.0},{"date":"2024-03-01","cash":0,"bank":5500.0},{"date":"2024-04-01","cash":0,"bank":7950.0},{"date":"2024-05-01","cash":0,"bank":6250.0},{"date":"2024-06-01","cash":0,"bank":9500.0},{"date":"2024-07-01","cash":0,"bank":10150.0},{"date":"2024-08-01","cash":0,"bank":6600.0},{"date":"2024-09-01","cash":0,"bank":8050.0},{"date":"2024-10-01","cash":0,"bank":8300.0},{"date":"2024-11-01","cash":0,"bank":8650.0},{"date":"2024-12-01","cash":0,"bank":9700.0},{"date":"2025-01-01","cash":0,"bank":9350.0},{"date":"2025-02-01","cash":0,"bank":7550.0},{"date":"2025-03-01","cash":0,"bank":6550.0},{"date":"2025-04-01","cash":0,"bank":7650.0},{"date":"2025-05-01","cash":0,"bank":12300.0},{"date":"2025-06-01","cash":0,"bank":6750.0},{"date":"2025-07-01","cash":0,"bank":12500.0},{"date":"2025-08-01","cash":0,"bank":7700.0},{"date":"2025-09-01","cash":0,"bank":21100.0},{"date":"2025-10-01","cash":0,"bank":14000.0},{"date":"2025-11-01","cash":0,"bank":9100.0},{"date":"2025-12-01","cash":0,"bank":14500.0},{"date":"2026-01-01","cash":0,"bank":12750.0},{"date":"2026-02-01","cash":0,"bank":12050.0},{"date":"2026-03-01","cash":0,"bank":10200.0}]');
+  const W_START = 97000;
+  let W = JSON.parse(localStorage.getItem('pi_weeks')||'[]');
   let curM = thisMon(), yv = 'cal', mf = 'all';
-  let ch = {}, tN=12, sN=12, editI=null, inited=false;
-  const sv = () => localStorage.setItem('pi_entries', JSON.stringify(E));
+  let ch = {}, tN=12, sN=12, editI=null, weditI=null, inited=false;
+  const sv  = () => localStorage.setItem('pi_entries', JSON.stringify(E));
+  const svW = () => localStorage.setItem('pi_weeks',   JSON.stringify(W));
   const mEs= m => E.filter(e=>e.date.slice(0,7)===m);
   const smF= m => { const es=mEs(m); const c=es.reduce((s,e)=>s+e.cash,0),b=es.reduce((s,e)=>s+e.bank,0); return{cash:c,bank:b,tot:c+b}; };
 
   function setTabs(active){
-    ['daily','monthly','yearly','charts'].forEach(t=>{
+    ['daily','weekly','monthly','yearly','charts'].forEach(t=>{
       const el=fe('inc-t-'+t); if(el){el.classList.remove('on'); el.style.color='';}
     });
     const el=fe('inc-t-'+active); if(el){el.classList.add('on'); el.style.color='var(--inc)';}
-    ['inc-daily','inc-monthly','inc-yearly','inc-charts'].forEach(id=>{
+    ['inc-daily','inc-weekly','inc-monthly','inc-yearly','inc-charts'].forEach(id=>{
       const el=fe(id); if(el) el.classList.remove('on');
     });
     const pg=fe('inc-'+active); if(pg) pg.classList.add('on');
@@ -819,6 +850,101 @@ const INC = (() => {
         <button class="eb" onclick="INC.edit(${ri})">✏️</button>
         <button class="db" onclick="INC.del(${ri})">✕</button>
       </div>`;
+    }).join('');
+  }
+
+  // ── Week helpers ──
+  function weekLabel(wk){
+    // wk = "2025-W14"
+    const [yr,wn] = wk.split('-W');
+    const jan4 = new Date(+yr, 0, 4);
+    const wday = jan4.getDay()||7;
+    const mon = new Date(jan4);
+    mon.setDate(jan4.getDate() - wday + 1 + (+wn-1)*7);
+    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    const fmt = d => d.toLocaleString('default',{month:'short',day:'numeric'});
+    return 'Wk '+wn+': '+fmt(mon)+' – '+fmt(sun);
+  }
+  function weekMon(wk){
+    const [yr,wn] = wk.split('-W');
+    const jan4 = new Date(+yr, 0, 4);
+    const wday = jan4.getDay()||7;
+    const mon = new Date(jan4);
+    mon.setDate(jan4.getDate() - wday + 1 + (+wn-1)*7);
+    return mon;
+  }
+  function thisWeekStr(){
+    const now = new Date();
+    const jan4 = new Date(now.getFullYear(),0,4);
+    const wday = jan4.getDay()||7;
+    const wn = Math.ceil(((now - new Date(now.getFullYear(),0,1))/86400000 + (new Date(now.getFullYear(),0,1).getDay()||7))/7);
+    return now.getFullYear()+'-W'+String(wn).padStart(2,'0');
+  }
+
+  function renderWeekly(){
+    // sort ascending for running balance calc, display descending
+    const asc = W.slice().sort((a,b)=>a.week.localeCompare(b.week));
+    // compute running balance for each entry
+    let bal = W_START;
+    const withBal = asc.map(e=>{
+      const net = (e.amt||0) - (e.out||0);
+      bal += net;
+      return {...e, net, bal};
+    });
+    const currentBal = bal;
+    const totalIn  = W.reduce((s,e)=>s+(e.amt||0),0);
+    const totalOut = W.reduce((s,e)=>s+(e.out||0),0);
+    const thisYr   = new Date().getFullYear();
+    const yrIn     = W.filter(e=>e.week.startsWith(thisYr+'')).reduce((s,e)=>s+(e.amt||0),0);
+    const yrOut    = W.filter(e=>e.week.startsWith(thisYr+'')).reduce((s,e)=>s+(e.out||0),0);
+
+    fe('inc-w-total').textContent = fmC(currentBal);
+    fe('inc-w-year').textContent  = fmC(yrIn - yrOut);
+    fe('inc-w-count').textContent = W.length;
+
+    const el = fe('inc-wlist');
+    if(!withBal.length){el.innerHTML='<div class="empty">No weekly entries yet — starting balance: '+fmC(W_START)+'</div>';return;}
+
+    // Display descending
+    const desc = withBal.slice().reverse();
+    // Group by year
+    const byYear = {};
+    desc.forEach(e=>{const yr=e.week.slice(0,4); if(!byYear[yr])byYear[yr]=[]; byYear[yr].push(e);});
+
+    el.innerHTML = Object.keys(byYear).sort((a,b)=>b-a).map(yr=>{
+      const entries = byYear[yr];
+      const yrNetIn  = entries.reduce((s,e)=>s+(e.amt||0),0);
+      const yrNetOut = entries.reduce((s,e)=>s+(e.out||0),0);
+      const rows = entries.map(e=>{
+        const ri  = W.findIndex(x=>x.week===e.week);
+        const pos = e.net >= 0;
+        return `<div class="di" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:9px">
+            <div class="dd" style="min-width:42px">
+              <div class="ddn" style="color:var(--inc);font-size:15px">Wk${e.week.split('-W')[1]}</div>
+              <div class="dds">${e.week.slice(0,4)}</div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;color:var(--mu)">${weekLabel(e.week)}</div>
+              ${e.note?`<div style="font-size:11px;color:var(--dm);margin-top:1px">${e.note}</div>`:''}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:${pos?'var(--inc)':'var(--fin)'}">${pos?'+':''}${fmC(e.net)}</div>
+              <div style="font-size:10px;color:var(--mu);margin-top:1px">Balance: ${fmC(e.bal)}</div>
+            </div>
+            <button class="eb" onclick="INC.editWeek(${ri})">✏️</button>
+            <button class="db" onclick="INC.delWeek(${ri})">✕</button>
+          </div>
+          <div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--bd)">
+            ${e.amt>0?`<span style="font-size:11px;color:var(--inc)">💵 In: ${fmC(e.amt)}</span>`:''}
+            ${e.out>0?`<span style="font-size:11px;color:var(--fin)">💸 Out: ${fmC(e.out)}</span>`:''}
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="st">${yr}
+        <span style="color:var(--inc);font-size:12px;margin-left:4px">+${fmC(yrNetIn)}</span>
+        ${yrNetOut>0?`<span style="color:var(--fin);font-size:12px;margin-left:4px">-${fmC(yrNetOut)}</span>`:''}
+      </div>${rows}`;
     }).join('');
   }
 
@@ -984,7 +1110,19 @@ const INC = (() => {
 
   return {
     init(){if(!inited){inited=true;} this.tab('daily');},
-    tab(t){setTabs(t); if(t==='daily')renderDaily(); else if(t==='monthly')renderMonthly(); else if(t==='yearly')renderYearly(); else if(t==='charts')renderCharts();},
+    tab(t){
+      setTabs(t);
+      if(t==='daily')renderDaily();
+      else if(t==='weekly')renderWeekly();
+      else if(t==='monthly')renderMonthly();
+      else if(t==='yearly')renderYearly();
+      else if(t==='charts')renderCharts();
+      // swap FAB label
+      const fab=document.querySelector('#sec-income .fab');
+      if(fab) fab.innerHTML=t==='weekly'?'＋ Record Week':'＋ Record Day';
+      const fabFn=t==='weekly'?'INC.openWMod()':'INC.openMod()';
+      if(fab) fab.setAttribute('onclick',fabFn);
+    },
     shift(d){const dt=new Date(curM+'-01'); dt.setMonth(dt.getMonth()+d); const nm=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); if(nm>='2022-11'&&nm<=thisMon()){curM=nm; renderDaily();}},
     setYV(v,el){yv=v; fe('inc-ycal').classList.toggle('on',v==='cal'); fe('inc-yprac').classList.toggle('on',v==='prac'); renderYearly();},
     setMF(v){mf=v; renderMonthly();},
@@ -1006,6 +1144,26 @@ const INC = (() => {
       if(editI!==null){E[editI]={date,cash,bank};}
       else{const xi=E.findIndex(e=>e.date===date); if(xi>=0){if(!confirm('Entry exists. Replace?'))return; E.splice(xi,1);} E.push({date,cash,bank}); E.sort((a,b)=>a.date.localeCompare(b.date));}
       sv(); closeMo('inc-mod'); curM=date.slice(0,7); renderDaily();
+    },
+    updWPrev(){
+      const amt=parseFloat(fe('inc-wamt').value)||0, out=parseFloat(fe('inc-wout').value)||0;
+      const net=amt-out;
+      const el=fe('inc-wprev');
+      el.textContent=(net>=0?'+':'')+fmC(net);
+      el.style.color=net>=0?'var(--inc)':'var(--fin)';
+    },
+    openWMod(){weditI=null; fe('inc-wmodttl').textContent='Record Weekly Take-Home'; fe('inc-week').value=thisWeekStr(); fe('inc-wamt').value=''; fe('inc-wout').value=''; fe('inc-wnote').value=''; fe('inc-wprev').textContent='€0'; fe('inc-wprev').style.color='var(--inc)'; openMo('inc-wmod');},
+    closeWMod(){closeMo('inc-wmod');},
+    editWeek(i){weditI=i; const e=W[i]; fe('inc-wmodttl').textContent='Edit Weekly Entry'; fe('inc-week').value=e.week; fe('inc-wamt').value=e.amt||0; fe('inc-wout').value=e.out||0; fe('inc-wnote').value=e.note||''; INC.updWPrev(); openMo('inc-wmod');},
+    delWeek(i){if(!confirm('Delete this entry?'))return; W.splice(i,1); svW(); renderWeekly();},
+    saveWeek(){
+      const week=fe('inc-week').value, amt=parseFloat(fe('inc-wamt').value)||0, out=parseFloat(fe('inc-wout').value)||0, note=fe('inc-wnote').value.trim();
+      if(!week){alert('Please select a week.');return;}
+      if(!amt&&!out){alert('Please enter at least an amount in or out.');return;}
+      const entry={week,amt,out,note};
+      if(weditI!==null){W[weditI]=entry;}
+      else{const xi=W.findIndex(e=>e.week===week); if(xi>=0){if(!confirm('Entry for this week exists. Replace?'))return; W.splice(xi,1);} W.push(entry); W.sort((a,b)=>a.week.localeCompare(b.week));}
+      svW(); closeMo('inc-wmod'); renderWeekly();
     },
     doExport(){
       if(!E.length){alert('No entries.');return;}
