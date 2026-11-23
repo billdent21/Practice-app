@@ -378,8 +378,8 @@ select option{background:#0e1218;}
   </div>
   <div id="inc-weekly" class="sp">
     <div class="cg" style="margin-top:10px">
-      <div class="cd cinc w"><div class="cl">Current Balance (Starting €97,000)</div><div class="cv" id="inc-w-total">€97,000</div></div>
-      <div class="cd cinc"><div class="cl">This Year Net</div><div class="cv" id="inc-w-year">€0</div></div>
+      <div class="cd cinc w"><div class="cl">Current Balance (Tracker start €97,000)</div><div class="cv" id="inc-w-total">€97,000</div></div>
+      <div class="cd cinc"><div class="cl" id="inc-w-ylbl">This Year Net</div><div class="cv" id="inc-w-year">€0</div></div>
       <div class="cd cmut"><div class="cl">Weeks Recorded</div><div class="cv" id="inc-w-count">0</div></div>
     </div>
     <div class="st">Weekly Entries</div>
@@ -401,8 +401,9 @@ select option{background:#0e1218;}
 </div>
 <div class="mo" id="inc-wmod">
   <div class="mw">
-    <div class="mttl" id="inc-wmodttl">Record Weekly Take-Home</div>
-    <div class="fg"><label class="fl">Week</label><input type="week" id="inc-week" style="color-scheme:dark"/></div>
+    <div class="mttl" id="inc-wmodttl">Record Day Movement</div>
+    <div class="fg"><label class="fl">Date</label><input type="date" id="inc-wdate" style="color-scheme:dark" oninput="INC.updWPrev()"/></div>
+    <div class="inote" id="inc-wweeknote" style="margin-bottom:10px"></div>
     <div class="fr2">
       <div class="fg"><label class="fl" style="color:var(--inc)">💵 Amount In (€)</label>
         <input type="number" id="inc-wamt" placeholder="0.00" min="0" step="0.01" oninput="INC.updWPrev()"/></div>
@@ -806,10 +807,32 @@ const S = {
 ═══════════════════════════════════════════════════ */
 const INC = (() => {
   let E = JSON.parse(localStorage.getItem('pi_entries')||'[{"date":"2022-11-01","cash":0,"bank":1900.0},{"date":"2022-12-01","cash":0,"bank":650.0},{"date":"2023-01-01","cash":0,"bank":1700.0},{"date":"2023-02-01","cash":0,"bank":2150.0},{"date":"2023-03-01","cash":0,"bank":3200.0},{"date":"2023-04-01","cash":0,"bank":2500.0},{"date":"2023-05-01","cash":0,"bank":4170.0},{"date":"2023-06-01","cash":0,"bank":3370.0},{"date":"2023-07-01","cash":0,"bank":5090.0},{"date":"2023-08-01","cash":0,"bank":1350.0},{"date":"2023-09-01","cash":0,"bank":3900.0},{"date":"2023-10-01","cash":0,"bank":5450.0},{"date":"2023-11-01","cash":0,"bank":5150.0},{"date":"2023-12-01","cash":0,"bank":2720.0},{"date":"2024-01-01","cash":0,"bank":7000.0},{"date":"2024-02-01","cash":0,"bank":3300.0},{"date":"2024-03-01","cash":0,"bank":5500.0},{"date":"2024-04-01","cash":0,"bank":7950.0},{"date":"2024-05-01","cash":0,"bank":6250.0},{"date":"2024-06-01","cash":0,"bank":9500.0},{"date":"2024-07-01","cash":0,"bank":10150.0},{"date":"2024-08-01","cash":0,"bank":6600.0},{"date":"2024-09-01","cash":0,"bank":8050.0},{"date":"2024-10-01","cash":0,"bank":8300.0},{"date":"2024-11-01","cash":0,"bank":8650.0},{"date":"2024-12-01","cash":0,"bank":9700.0},{"date":"2025-01-01","cash":0,"bank":9350.0},{"date":"2025-02-01","cash":0,"bank":7550.0},{"date":"2025-03-01","cash":0,"bank":6550.0},{"date":"2025-04-01","cash":0,"bank":7650.0},{"date":"2025-05-01","cash":0,"bank":12300.0},{"date":"2025-06-01","cash":0,"bank":6750.0},{"date":"2025-07-01","cash":0,"bank":12500.0},{"date":"2025-08-01","cash":0,"bank":7700.0},{"date":"2025-09-01","cash":0,"bank":21100.0},{"date":"2025-10-01","cash":0,"bank":14000.0},{"date":"2025-11-01","cash":0,"bank":9100.0},{"date":"2025-12-01","cash":0,"bank":14500.0},{"date":"2026-01-01","cash":0,"bank":12750.0},{"date":"2026-02-01","cash":0,"bank":12050.0},{"date":"2026-03-01","cash":0,"bank":10200.0}]');
-  const W_START = 97000;
+  const W_START = 97000;        // balance when the weekly tracker was started
+  const Y2026_START = 72000;    // balance on 1 Jan 2026
   let W = JSON.parse(localStorage.getItem('pi_weeks')||'[]');
+  function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function recalcW(e){e.amt=e.moves.reduce((s,m)=>s+(m.amt||0),0); e.out=e.moves.reduce((s,m)=>s+(m.out||0),0);}
+  // Migration: older weekly entries become one dateless movement, so existing totals are unchanged
+  W.forEach(e=>{
+    if(!Array.isArray(e.moves)) e.moves=[{id:mkId(),date:'',amt:e.amt||0,out:e.out||0,note:e.note||''}];
+    recalcW(e);
+  });
+  function localDate(){const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function isoWeekOf(ds){
+    const d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()+3-(d.getDay()+6)%7);
+    const wk1=new Date(d.getFullYear(),0,4);
+    const wn=1+Math.round(((d-wk1)/86400000-3+(wk1.getDay()+6)%7)/7);
+    return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
+  }
+  const escH=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let mvEdit=null;
+  function removeMove(wk,id){
+    const e=W.find(x=>x.week===wk); if(!e) return;
+    e.moves=e.moves.filter(m=>m.id!==id);
+    if(!e.moves.length) W.splice(W.indexOf(e),1); else recalcW(e);
+  }
   let curM = thisMon(), yv = 'cal', mf = 'all';
-  let ch = {}, tN=12, sN=12, editI=null, weditI=null, inited=false;
+  let ch = {}, tN=12, sN=12, editI=null, inited=false;
   const sv  = () => localStorage.setItem('pi_entries', JSON.stringify(E));
   const svW = () => localStorage.setItem('pi_weeks',   JSON.stringify(W));
   const mEs= m => E.filter(e=>e.date.slice(0,7)===m);
@@ -895,11 +918,14 @@ const INC = (() => {
     const totalIn  = W.reduce((s,e)=>s+(e.amt||0),0);
     const totalOut = W.reduce((s,e)=>s+(e.out||0),0);
     const thisYr   = new Date().getFullYear();
-    const yrIn     = W.filter(e=>e.week.startsWith(thisYr+'')).reduce((s,e)=>s+(e.amt||0),0);
-    const yrOut    = W.filter(e=>e.week.startsWith(thisYr+'')).reduce((s,e)=>s+(e.out||0),0);
+    // Balance at the start of the current year: fixed 72,000 for 2026, otherwise the running balance at the end of the previous year
+    let yrStart = W_START;
+    if(thisYr===2026) yrStart = Y2026_START;
+    else withBal.forEach(e=>{ if(+e.week.slice(0,4)<thisYr) yrStart=e.bal; });
 
     fe('inc-w-total').textContent = fmC(currentBal);
-    fe('inc-w-year').textContent  = fmC(yrIn - yrOut);
+    fe('inc-w-year').textContent  = fmC(currentBal - yrStart);
+    fe('inc-w-ylbl').textContent  = 'Net since 1 Jan (from '+fmC(yrStart)+')';
     fe('inc-w-count').textContent = W.length;
 
     const el = fe('inc-wlist');
@@ -916,7 +942,6 @@ const INC = (() => {
       const yrNetIn  = entries.reduce((s,e)=>s+(e.amt||0),0);
       const yrNetOut = entries.reduce((s,e)=>s+(e.out||0),0);
       const rows = entries.map(e=>{
-        const ri  = W.findIndex(x=>x.week===e.week);
         const pos = e.net >= 0;
         return `<div class="di" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px 14px">
           <div style="display:flex;align-items:center;gap:9px">
@@ -926,19 +951,28 @@ const INC = (() => {
             </div>
             <div style="flex:1;min-width:0">
               <div style="font-size:11px;color:var(--mu)">${weekLabel(e.week)}</div>
-              ${e.note?`<div style="font-size:11px;color:var(--dm);margin-top:1px">${e.note}</div>`:''}
             </div>
             <div style="text-align:right;flex-shrink:0">
               <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:${pos?'var(--inc)':'var(--fin)'}">${pos?'+':''}${fmC(e.net)}</div>
               <div style="font-size:10px;color:var(--mu);margin-top:1px">Balance: ${fmC(e.bal)}</div>
             </div>
-            <button class="eb" onclick="INC.editWeek(${ri})">✏️</button>
-            <button class="db" onclick="INC.delWeek(${ri})">✕</button>
           </div>
           <div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--bd)">
             ${e.amt>0?`<span style="font-size:11px;color:var(--inc)">💵 In: ${fmC(e.amt)}</span>`:''}
             ${e.out>0?`<span style="font-size:11px;color:var(--fin)">💸 Out: ${fmC(e.out)}</span>`:''}
           </div>
+          ${e.moves.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(m=>{
+            const lbl=m.date?new Date(m.date+'T00:00:00').toLocaleString('default',{weekday:'short',day:'numeric',month:'short'}):'Week total';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--bd)">
+              <div style="min-width:70px;font-size:11px;color:var(--mu)">${lbl}</div>
+              <div style="flex:1;min-width:0;font-size:11px">
+                ${m.amt>0?`<span style="color:var(--inc)">+${fmC(m.amt)}</span> `:''}${m.out>0?`<span style="color:var(--fin)">−${fmC(m.out)}</span>`:''}
+                ${m.note?`<div style="color:var(--dm);margin-top:1px">${escH(m.note)}</div>`:''}
+              </div>
+              <button class="eb" onclick="INC.editMove('${e.week}','${m.id}')">✏️</button>
+              <button class="db" onclick="INC.delMove('${e.week}','${m.id}')">✕</button>
+            </div>`;
+          }).join('')}
         </div>`;
       }).join('');
       return `<div class="st">${yr}
@@ -1119,7 +1153,7 @@ const INC = (() => {
       else if(t==='charts')renderCharts();
       // swap FAB label
       const fab=document.querySelector('#sec-income .fab');
-      if(fab) fab.innerHTML=t==='weekly'?'＋ Record Week':'＋ Record Day';
+      if(fab) fab.innerHTML=t==='weekly'?'＋ Record Movement':'＋ Record Day';
       const fabFn=t==='weekly'?'INC.openWMod()':'INC.openMod()';
       if(fab) fab.setAttribute('onclick',fabFn);
     },
@@ -1151,19 +1185,38 @@ const INC = (() => {
       const el=fe('inc-wprev');
       el.textContent=(net>=0?'+':'')+fmC(net);
       el.style.color=net>=0?'var(--inc)':'var(--fin)';
+      const ds=fe('inc-wdate').value, nt=fe('inc-wweeknote');
+      if(ds) nt.textContent='Counts toward '+weekLabel(isoWeekOf(ds))+' (weekly totals add up automatically)';
+      else if(mvEdit) nt.textContent='No date: stays in '+weekLabel(mvEdit.week);
+      else nt.textContent='Pick the day of the movement.';
     },
-    openWMod(){weditI=null; fe('inc-wmodttl').textContent='Record Weekly Take-Home'; fe('inc-week').value=thisWeekStr(); fe('inc-wamt').value=''; fe('inc-wout').value=''; fe('inc-wnote').value=''; fe('inc-wprev').textContent='€0'; fe('inc-wprev').style.color='var(--inc)'; openMo('inc-wmod');},
+    openWMod(){mvEdit=null; fe('inc-wmodttl').textContent='Record Day Movement'; fe('inc-wdate').value=localDate(); fe('inc-wamt').value=''; fe('inc-wout').value=''; fe('inc-wnote').value=''; INC.updWPrev(); openMo('inc-wmod');},
     closeWMod(){closeMo('inc-wmod');},
-    editWeek(i){weditI=i; const e=W[i]; fe('inc-wmodttl').textContent='Edit Weekly Entry'; fe('inc-week').value=e.week; fe('inc-wamt').value=e.amt||0; fe('inc-wout').value=e.out||0; fe('inc-wnote').value=e.note||''; INC.updWPrev(); openMo('inc-wmod');},
-    delWeek(i){if(!confirm('Delete this entry?'))return; W.splice(i,1); svW(); renderWeekly();},
+    editMove(wk,id){
+      const e=W.find(x=>x.week===wk); if(!e) return;
+      const m=e.moves.find(x=>x.id===id); if(!m) return;
+      mvEdit={week:wk,id};
+      fe('inc-wmodttl').textContent='Edit Movement';
+      fe('inc-wdate').value=m.date||''; fe('inc-wamt').value=m.amt||''; fe('inc-wout').value=m.out||''; fe('inc-wnote').value=m.note||'';
+      INC.updWPrev(); openMo('inc-wmod');
+    },
+    delMove(wk,id){
+      if(!confirm('Delete this movement?'))return;
+      removeMove(wk,id); svW(); renderWeekly();
+    },
     saveWeek(){
-      const week=fe('inc-week').value, amt=parseFloat(fe('inc-wamt').value)||0, out=parseFloat(fe('inc-wout').value)||0, note=fe('inc-wnote').value.trim();
-      if(!week){alert('Please select a week.');return;}
+      const date=fe('inc-wdate').value, amt=parseFloat(fe('inc-wamt').value)||0, out=parseFloat(fe('inc-wout').value)||0, note=fe('inc-wnote').value.trim();
+      if(!date && !mvEdit){alert('Please select a date.');return;}
       if(!amt&&!out){alert('Please enter at least an amount in or out.');return;}
-      const entry={week,amt,out,note};
-      if(weditI!==null){W[weditI]=entry;}
-      else{const xi=W.findIndex(e=>e.week===week); if(xi>=0){if(!confirm('Entry for this week exists. Replace?'))return; W.splice(xi,1);} W.push(entry); W.sort((a,b)=>a.week.localeCompare(b.week));}
-      svW(); closeMo('inc-wmod'); renderWeekly();
+      const week=date?isoWeekOf(date):mvEdit.week;
+      const id=mvEdit?mvEdit.id:mkId();
+      if(mvEdit) removeMove(mvEdit.week,mvEdit.id);
+      let e=W.find(x=>x.week===week);
+      if(!e){e={week,amt:0,out:0,note:'',moves:[]}; W.push(e);}
+      e.moves.push({id,date,amt,out,note});
+      recalcW(e);
+      W.sort((a,b)=>a.week.localeCompare(b.week));
+      mvEdit=null; svW(); closeMo('inc-wmod'); renderWeekly();
     },
     doExport(){
       if(!E.length){alert('No entries.');return;}
